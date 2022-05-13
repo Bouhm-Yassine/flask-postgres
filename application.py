@@ -1,38 +1,48 @@
-import os
-import unittest
+from flask import Flask, request
+from flask_sqlalchemy import SQLAlchemy
 
-from flask_migrate import Migrate, MigrateCommand
-from flask_script import Manager
+app = Flask(__name__)
 
-from app import blueprint
-from app.main import create_app, db
+app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql://postgres:admin@localhost/test_db"
+# SQLALCHEMY_DATABASE_URI
 
-app = create_app(os.getenv('APP_ENV') or 'dev')
-app.register_blueprint(blueprint)
-
-app.app_context().push()
-
-manager = Manager(app)
-
-migrate = Migrate(app, db)
-
-manager.add_command('db', MigrateCommand)
+db = SQLAlchemy(app)
 
 
-@manager.command
-def run():
-    app.run(port=5005)
+class Student(db.Model):
+    __tablename__ = 'students'
+    id = db.Column(db.Integer, primary_key=True)
+    fname = db.Column(db.String(40))
+    lname = db.Column(db.String(40))
+
+    def __init__(self, fname, lname):
+        self.fname = fname
+        self.lname = lname
 
 
-@manager.command
-def test():
-    """Runs the unit tests."""
-    tests = unittest.TestLoader().discover('app/test', pattern='test*.py')
-    result = unittest.TextTestRunner(verbosity=2).run(tests)
-    if result.wasSuccessful():
-        return 0
-    return 1
+@app.route('/save', methods=['POST'])
+def save_student():
+    post_data = request.json
+    student = Student(post_data['fname'], post_data['lname'])
+    db.session.add(student)
+    db.session.commit()
+    return None
+
+
+@app.route('/get', methods=['GET'])
+def get_students():
+    students = db.session.query(Student).filter(Student.id == 1)
+    for s in students:
+        print(s)
+    return None
 
 
 if __name__ == '__main__':
-    manager.run()
+    app.run(debug=True)
+
+
+# ===> TO CREATE DATABASE
+# Go to terminal and enter:
+# python
+# from application import db
+# db.create_all()
